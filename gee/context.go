@@ -9,7 +9,7 @@ import (
 type H map[string]interface{}
 
 type Context struct {
-	writer     http.ResponseWriter
+	Writer     http.ResponseWriter
 	Req        *http.Request
 	Path       string
 	Method     string
@@ -17,11 +17,12 @@ type Context struct {
 	StatusCode int
 	handlers   []HandlerFunc
 	index      int
+	engine     *Engine
 }
 
 func newContext(w http.ResponseWriter, r *http.Request) *Context {
 	return &Context{
-		writer: w,
+		Writer: w,
 		Req:    r,
 		Path:   r.URL.Path,
 		Method: r.Method,
@@ -57,35 +58,38 @@ func (c *Context) Query(key string) string {
 
 func (c *Context) Status(code int) {
 	c.StatusCode = code
-	c.writer.WriteHeader(code)
+	c.Writer.WriteHeader(code)
 }
 
 func (c *Context) SetHeader(key string, value string) {
-	c.writer.Header().Set(key, value)
+	c.Writer.Header().Set(key, value)
 }
 func (c *Context) String(code int, format string, values ...interface{}) {
 	c.SetHeader("Content-Type", "text/plain")
 	c.Status(code)
-	c.writer.Write([]byte(fmt.Sprintf(format, values...)))
+	c.Writer.Write([]byte(fmt.Sprintf(format, values...)))
 }
 
 func (c *Context) JSON(code int, obj interface{}) {
 
 	c.SetHeader("Content-Type", "application/json")
 	c.Status(code)
-	encoder := json.NewEncoder(c.writer)
+	encoder := json.NewEncoder(c.Writer)
 	if err := encoder.Encode(obj); err != nil {
-		http.Error(c.writer, err.Error(), 500)
+		http.Error(c.Writer, err.Error(), 500)
 	}
 }
 
 func (c *Context) Data(code int, data []byte) {
 	c.Status(code)
-	c.writer.Write(data)
+	c.Writer.Write(data)
 }
 
-func (c *Context) HTML(code int, html string) {
+func (c *Context) HTML(code int, name string, data interface{}) {
 	c.SetHeader("Content-Type", "text/html")
 	c.Status(code)
-	c.writer.Write([]byte(html))
+	if err := c.engine.htmlTemplates.ExecuteTemplate(c.Writer, name, data); err != nil {
+		c.Fail(500, err.Error())
+	}
+	// c.Writer.Write([]byte(html))
 }

@@ -1,11 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"gee"
 	"log"
 	"net/http"
 	"time"
 )
+
+type student struct {
+	Name string
+	Age  int8
+}
+
+func FormatAsDate(t time.Time) string {
+	year, month, day := t.Date()
+	return fmt.Sprintf("%d-%02d-%02d", year, month, day)
+}
 
 func onlyForV2() gee.HandlerFunc {
 	return func(c *gee.Context) {
@@ -20,19 +31,15 @@ func onlyForV2() gee.HandlerFunc {
 }
 
 func main() {
-	r := gee.New()
-	r.Use(gee.Logger()) // global middleware
-	r.GET("/", func(c *gee.Context) {
-		c.HTML(http.StatusOK, "<h1>Hello Gee</h1>")
+	r := gee.Default()
+	r.Static("/assets", "./static")
+	r.GET("/panic", func(c *gee.Context) {
+		names := []string{"geektutu"}
+		c.String(http.StatusOK, names[100])
 	})
-	// r.GET("/index", func(c *gee.Context) {
-	// 	c.HTML(http.StatusOK, "<h1>Index Page</h1>")
-	// })
+
 	v1 := r.Group("/v1")
 	{
-		v1.GET("/", func(c *gee.Context) {
-			c.HTML(http.StatusOK, "<h1>Hello Gee</h1>")
-		})
 		v1.GET("/hello", func(c *gee.Context) {
 			// expect /hello?name=geektutu
 			c.String(http.StatusOK, "hello %s, you're at %s\n", c.Query("name"), c.Path)
